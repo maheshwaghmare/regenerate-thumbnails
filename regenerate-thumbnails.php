@@ -346,9 +346,8 @@ class RegenerateThumbnails {
 <?php
 	}
 
+	function ajax_process_regenerate_thumbnails() {
 
-	// Process a single image ID (this is an AJAX handler)
-	public function ajax_process_image() {
 		@error_reporting( 0 ); // Don't break the JSON result
 
 		header( 'Content-type: application/json' );
@@ -376,10 +375,25 @@ class RegenerateThumbnails {
 		if ( empty( $metadata ) )
 			$this->die_json_error_msg( $image->ID, __( 'Unknown failure reason.', 'regenerate-thumbnails' ) );
 
-		// If this fails, then it just means that nothing was changed (old value == new value)
-		wp_update_attachment_metadata( $image->ID, $metadata );
+		$attachment_view = get_attachment_link( $image->ID );
+		$attachment_edit = get_edit_post_link( $image->ID );
+	
+		die( json_encode( array( 'success' => sprintf( __( '&quot;%1$s&quot; (ID %2$s) was successfully resized in %3$s seconds. <a href="%4$s">view</a> | <a href="%5$s">edit</a>', 'regenerate-thumbnails' ), esc_html( get_the_title( $image->ID ) ), $image->ID, timer_stop(), $attachment_view, $attachment_edit ) ) ) );
+	}
 
-		die( json_encode( array( 'success' => sprintf( __( '&quot;%1$s&quot; (ID %2$s) was successfully resized in %3$s seconds.', 'regenerate-thumbnails' ), esc_html( get_the_title( $image->ID ) ), $image->ID, timer_stop() ) ) ) );
+	// Process a single image ID (this is an AJAX handler)
+	public function ajax_process_image() {
+
+		if( is_multisite() ) {
+			$blogs      = get_sites();
+			foreach( $blogs as $blog ) {
+				switch_to_blog( $blog->blog_id );
+					$this->ajax_process_regenerate_thumbnails();
+				restore_current_blog();
+			}
+		} else {
+			$this->ajax_process_regenerate_thumbnails();
+		}
 	}
 
 
